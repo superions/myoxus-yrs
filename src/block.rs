@@ -14,7 +14,7 @@ use crate::updates::encoder::{Encode, Encoder};
 use crate::utils::OptionExt;
 use crate::{Any, Doc, IdSet, Options, Out, Transact};
 use serde::{Deserialize, Serialize};
-use smallstr::SmallString;
+use compact_str::CompactString;
 use std::cell::UnsafeCell;
 use std::collections::HashSet;
 use std::convert::TryFrom;
@@ -864,11 +864,10 @@ impl Item {
                 txn.delete_set.insert(self.id, *len);
                 self.mark_as_deleted();
             }
-            ItemContent::Doc(parent_doc, doc) => {
-                *parent_doc = Some(txn.doc().clone());
+            ItemContent::Doc(doc) => {
                 {
                     let mut child_txn = doc.transact_mut();
-                    child_txn.store.parent = Some(self_ptr);
+                    child_txn.store.parent = Some(crate::store::ParentLink::new(txn.doc(), self_ptr.id));
                 }
                 let subdocs = txn.subdocs.get_or_init();
                 subdocs.added.insert(DocAddr::new(doc), doc.clone());
@@ -882,9 +881,9 @@ impl Item {
                 let mut parent = *self.parent.as_branch().unwrap();
                 parent.has_formatting = true;
             }
+            #[cfg(feature = "weak")]
             ItemContent::Type(branch) => {
                 let ptr = BranchPtr::from(branch);
-                #[cfg(feature = "weak")]
                 if let TypeRef::WeakLink(source) = &ptr.type_ref {
                     source.materialize(txn, ptr);
                 }
@@ -1569,7 +1568,9 @@ impl Item {
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Debug, Clone)]
 pub struct SplittableString {
-    content: SmallString<[u8; 8]>,
+    // Only storage changes: splitting and wire offsets still use the existing
+    // byte/UTF-16 rules. Server and native consumers share this patched source.
+    content: CompactString,
 }
 
 impl SplittableString {
@@ -1630,9 +1631,9 @@ impl std::fmt::Display for SplittableString {
     }
 }
 
-impl Into<SmallString<[u8; 8]>> for SplittableString {
+impl Into<CompactString> for SplittableString {
     #[inline(always)]
-    fn into(self) -> SmallString<[u8; 8]> {
+    fn into(self) -> CompactString {
         self.content
     }
 }
@@ -1644,15 +1645,15 @@ impl Into<Box<str>> for SplittableString {
     }
 }
 
-impl From<SmallString<[u8; 8]>> for SplittableString {
-    fn from(content: SmallString<[u8; 8]>) -> Self {
+impl From<CompactString> for SplittableString {
+    fn from(content: CompactString) -> Self {
         SplittableString { content }
     }
 }
 
 impl<'a> From<&'a str> for SplittableString {
     fn from(str: &'a str) -> Self {
-        Self::from(SmallString::from_str(str))
+        Self::from(CompactString::new(str))
     }
 }
 
@@ -1700,8 +1701,8 @@ pub enum ItemContent {
     /// Deleted elements also don't contribute to an overall length of containing collection type.
     Deleted(u32),
 
-    /// Sub-document container. Contains weak reference to a parent document and a child document.
-    Doc(Option<Doc>, Doc),
+    /// Sub-document container. Parent ownership is tracked weakly in the child store.
+    Doc(Doc),
 
     /// Obsolete: collection of consecutively inserted stringified JSON values.
     JSON(Vec<String>),
@@ -1729,7 +1730,7 @@ impl ItemContent {
             ItemContent::Any(_) => BLOCK_ITEM_ANY_REF_NUMBER,
             ItemContent::Binary(_) => BLOCK_ITEM_BINARY_REF_NUMBER,
             ItemContent::Deleted(_) => BLOCK_ITEM_DELETED_REF_NUMBER,
-            ItemContent::Doc(_, _) => BLOCK_ITEM_DOC_REF_NUMBER,
+            ItemContent::Doc(_) => BLOCK_ITEM_DOC_REF_NUMBER,
             ItemContent::JSON(_) => BLOCK_ITEM_JSON_REF_NUMBER,
             ItemContent::Embed(_) => BLOCK_ITEM_EMBED_REF_NUMBER,
             ItemContent::Format(_, _) => BLOCK_ITEM_FORMAT_REF_NUMBER,
@@ -1746,7 +1747,7 @@ impl ItemContent {
         match self {
             ItemContent::Any(_) => true,
             ItemContent::Binary(_) => true,
-            ItemContent::Doc(_, _) => true,
+            ItemContent::Doc(_) => true,
             ItemContent::JSON(_) => true,
             ItemContent::Embed(_) => true,
             ItemContent::String(_) => true,
@@ -1819,7 +1820,7 @@ impl ItemContent {
                     buf[0] = Out::Any(Any::from(v.deref()));
                     1
                 }
-                ItemContent::Doc(_, doc) => {
+                ItemContent::Doc(doc) => {
                     buf[0] = Out::YDoc(doc.clone());
                     1
                 }
@@ -1857,7 +1858,7 @@ impl ItemContent {
             ItemContent::Any(v) => v.first().map(|a| Out::Any(a.clone())),
             ItemContent::Binary(v) => Some(Out::Any(Any::from(v.deref()))),
             ItemContent::Deleted(_) => None,
-            ItemContent::Doc(_, v) => Some(Out::YDoc(v.clone())),
+            ItemContent::Doc(v) => Some(Out::YDoc(v.clone())),
             ItemContent::JSON(v) => v.first().map(|v| Out::Any(Any::from(v.deref()))),
             ItemContent::Embed(v) => Some(Out::Any(v.clone())),
             ItemContent::Format(_, _) => None,
@@ -1872,7 +1873,7 @@ impl ItemContent {
             ItemContent::Any(v) => v.last().map(|a| Out::Any(a.clone())),
             ItemContent::Binary(v) => Some(Out::Any(Any::from(v.deref()))),
             ItemContent::Deleted(_) => None,
-            ItemContent::Doc(_, v) => Some(Out::YDoc(v.clone())),
+            ItemContent::Doc(v) => Some(Out::YDoc(v.clone())),
             ItemContent::JSON(v) => v.last().map(|v| Out::Any(Any::from(v.as_str()))),
             ItemContent::Embed(v) => Some(Out::Any(v.clone())),
             ItemContent::Format(_, _) => None,
@@ -1923,7 +1924,7 @@ impl ItemContent {
                     encoder.write_any(&any[i as usize]);
                 }
             }
-            ItemContent::Doc(_, doc) => doc.store().options().encode(encoder),
+            ItemContent::Doc(doc) => doc.store().options().encode(encoder),
         }
     }
 
@@ -1952,7 +1953,7 @@ impl ItemContent {
                     encoder.write_any(a);
                 }
             }
-            ItemContent::Doc(_, doc) => doc.store().options().encode(encoder),
+            ItemContent::Doc(doc) => doc.store().options().encode(encoder),
         }
     }
 
@@ -1997,7 +1998,7 @@ impl ItemContent {
             BLOCK_ITEM_DOC_REF_NUMBER => {
                 let mut options = Options::decode(decoder)?;
                 options.should_load = options.should_load || options.auto_load;
-                Ok(ItemContent::Doc(None, Doc::with_options(options)))
+                Ok(ItemContent::Doc(Doc::with_options(options)))
             }
             _ => Err(Error::UnexpectedValue),
         }
@@ -2102,7 +2103,7 @@ impl Clone for ItemContent {
             ItemContent::Any(array) => ItemContent::Any(array.clone()),
             ItemContent::Binary(bytes) => ItemContent::Binary(bytes.clone()),
             ItemContent::Deleted(len) => ItemContent::Deleted(*len),
-            ItemContent::Doc(store, doc) => ItemContent::Doc(store.clone(), doc.clone()),
+            ItemContent::Doc(doc) => ItemContent::Doc(doc.clone()),
             ItemContent::JSON(array) => ItemContent::JSON(array.clone()),
             ItemContent::Embed(json) => ItemContent::Embed(json.clone()),
             ItemContent::Format(key, value) => ItemContent::Format(key.clone(), value.clone()),
@@ -2231,7 +2232,7 @@ impl std::fmt::Display for ItemContent {
                 TypeRef::WeakLink(s) => write!(f, "<weak({}..{})>", s.quote_start, s.quote_end),
                 _ => write!(f, "<undefined type ref>"),
             },
-            ItemContent::Doc(_, doc) => std::fmt::Display::fmt(doc, f),
+            ItemContent::Doc(doc) => std::fmt::Display::fmt(doc, f),
             _ => Ok(()),
         }
     }
@@ -2286,7 +2287,7 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct PrelimString(pub SmallString<[u8; 8]>);
+pub(crate) struct PrelimString(pub CompactString);
 
 impl Prelim for PrelimString {
     type Return = Unused;

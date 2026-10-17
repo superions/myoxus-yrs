@@ -19,6 +19,8 @@ pub enum Any {
     Undefined,
     Bool(bool),
     Number(Number),
+    /// Preserve the distinct lib0 BigInt wire type of existing Myoxus documents.
+    BigInt(i64),
     String(Arc<str>),
     Buffer(Arc<[u8]>),
     Array(Arc<[Any]>),
@@ -49,7 +51,7 @@ impl Any {
             // CASE 123: float64
             123 => Any::Number(Number::Float(decoder.read_f64()?)),
             // CASE 122: bigint
-            122 => Any::Number(Number::Int(decoder.read_i64()?)),
+            122 => Any::BigInt(decoder.read_i64()?),
             // CASE 121: boolean (false)
             121 => Any::Bool(false),
             // CASE 120: boolean (true)
@@ -149,11 +151,11 @@ impl Any {
                             // TYPE 125: INTEGER
                             encoder.write_u8(125);
                             encoder.write_var(n)
-                        } else if (n as f32) as i64 == n {
+                        } else if (n as f32) as i128 == n as i128 {
                             // TYPE 124: FLOAT32
                             encoder.write_u8(124);
                             encoder.write_f32(n as f32)
-                        } else if (n as f64) as i64 == n {
+                        } else if (n as f64) as i128 == n as i128 {
                             // TYPE 123: FLOAT64
                             encoder.write_u8(123);
                             encoder.write_f64(n as f64)
@@ -176,6 +178,10 @@ impl Any {
                     }
                 }
             }
+            Any::BigInt(value) => {
+                encoder.write_u8(122);
+                encoder.write_i64(*value);
+            }
             Any::Array(arr) => {
                 // TYPE 117: Array
                 encoder.write_u8(117);
@@ -188,7 +194,11 @@ impl Any {
                 // TYPE 118: Map
                 encoder.write_u8(118);
                 encoder.write_var(map.len() as u64);
-                for (key, value) in map.as_ref() {
+                // Object field order has no protocol meaning. Stable encoding is
+                // required when full document updates are used as revision hashes.
+                let mut entries: Vec<_> = map.iter().collect();
+                entries.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
+                for (key, value) in entries {
                     encoder.write_string(&key);
                     value.encode(encoder);
                 }
@@ -241,6 +251,7 @@ impl std::fmt::Display for Any {
             Any::Undefined => f.write_str("undefined"),
             Any::Bool(value) => write!(f, "{}", value),
             Any::Number(value) => write!(f, "{}", value),
+            Any::BigInt(value) => write!(f, "{}", value),
             Any::String(value) => f.write_str(value.as_ref()),
             Any::Array(values) => {
                 write!(f, "[")?;
@@ -303,9 +314,12 @@ impl Number {
         match self {
             Number::Int(value) => Some(value),
             Number::Float(value) => {
-                // check if conversion is lossless
+                // Exclude 2^63 before casting: float-to-i64 casts saturate at i64::MAX.
                 let converted = value as i64;
-                if converted as f64 == value {
+                if value >= i64::MIN as f64
+                    && value < -(i64::MIN as f64)
+                    && converted as f64 == value
+                {
                     Some(converted)
                 } else {
                     None
@@ -318,7 +332,7 @@ impl Number {
         match self {
             Number::Int(value) => {
                 let n = value as f64;
-                if n as i64 == value {
+                if n as i128 == value as i128 {
                     Some(n)
                 } else {
                     None
@@ -540,6 +554,7 @@ macro_rules! impl_from_float {
                         Some(n) => Ok(n as Self),
                         None => Err(v),
                     },
+                    Any::BigInt(num) => Ok(num as Self),
                     other => Err(other),
                 }
             }
@@ -550,7 +565,13 @@ macro_rules! impl_from_int {
     ($t:ty) => {
         impl From<$t> for Any {
             fn from(value: $t) -> Self {
-                Any::Number(Number::from(value as i64))
+                let value = value as i64;
+                // Retain the pre-0.28 BigInt representation outside JS safe integers.
+                if value < Number::I64_MIN_SAFE_INTEGER || value > Number::I64_MAX_SAFE_INTEGER {
+                    Any::BigInt(value)
+                } else {
+                    Any::Number(Number::Int(value))
+                }
             }
         }
 
@@ -563,6 +584,7 @@ macro_rules! impl_from_int {
                         Some(n) => Ok(n as Self),
                         None => Err(v),
                     },
+                    Any::BigInt(num) => Ok(num as Self),
                     other => Err(other),
                 }
             }
@@ -583,7 +605,8 @@ impl TryFrom<u64> for Any {
     type Error = u64;
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
-        Ok(Any::Number(Number::try_from(value)?))
+        let value = i64::try_from(value).map_err(|_| value)?;
+        Ok(Any::from(value))
     }
 }
 
@@ -596,6 +619,7 @@ impl TryFrom<Any> for u64 {
                 Some(n) if n >= 0 => Ok(n as u64),
                 _ => Err(Any::Number(num)),
             },
+            Any::BigInt(n) if n >= 0 => Ok(n as u64),
             other => Err(other),
         }
     }
@@ -632,6 +656,7 @@ impl TryFrom<Any> for usize {
                 Some(n) if n >= 0 => Ok(n as usize),
                 _ => Err(v),
             },
+            Any::BigInt(n) => usize::try_from(n).map_err(|_| v),
             other => Err(other),
         }
     }

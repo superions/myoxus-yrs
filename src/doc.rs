@@ -2,7 +2,7 @@ use crate::block::{ClientID, ItemContent, ItemPtr, Prelim};
 use crate::branch::BranchPtr;
 use crate::encoding::read::Error;
 use crate::event::{SubdocsEvent, TransactionCleanupEvent, UpdateEvent};
-use crate::store::{DocStore, StoreInner};
+use crate::store::{DocStore, ParentLink, StoreInner};
 use crate::transaction::{Origin, TransactionMut};
 use crate::types::{RootRef, ToJson};
 use crate::updates::decoder::{Decode, Decoder};
@@ -150,7 +150,7 @@ impl Doc {
         }
     }
 
-    pub(crate) fn subdoc(parent: ItemPtr, options: Options) -> Self {
+    pub(crate) fn subdoc(parent: ParentLink, options: Options) -> Self {
         Doc {
             store: DocStore::new(options, Some(parent)),
         }
@@ -357,7 +357,11 @@ impl Doc {
         let should_load = self.store.set_should_load(true);
         if !should_load {
             let txn = self.transact();
-            if txn.store().is_subdoc() {
+            if txn.store().parent.as_ref().is_some_and(|link| {
+                parent_txn.store_mut().blocks.get_item(&link.id).is_some_and(|item| {
+                    matches!(&item.content, ItemContent::Doc(doc) if Doc::ptr_eq(doc, self))
+                })
+            }) {
                 parent_txn
                     .subdocs_mut()
                     .loaded
@@ -376,25 +380,29 @@ impl Doc {
             subdoc.destroy(Some(&mut txn));
         }
         if let Some(parent_txn) = parent_txn {
-            if let Some(mut item) = txn.store.parent.take() {
-                let parent_ref = item.clone();
-                let is_deleted = item.is_deleted();
-                if let ItemContent::Doc(_, content) = &mut item.content {
-                    let mut options = (**content.store.options()).clone();
-                    options.should_load = false;
-                    let new_ref = Doc::subdoc(parent_ref, options);
-                    if !is_deleted {
+            if txn.store.parent.as_ref().is_some_and(|link| link.matches(parent_txn.doc())) {
+                let parent_ref = txn.store.parent.take().unwrap();
+                // The matching parent transaction owns the store and excludes GC.
+                // Removal may already have collected this item before destroy delivery.
+                if let Some(mut item) = parent_txn.store.blocks.get_item(&parent_ref.id) {
+                    let is_deleted = item.is_deleted();
+                    if let ItemContent::Doc(content) = &mut item.content {
+                        let mut options = (**content.store.options()).clone();
+                        options.should_load = false;
+                        let new_ref = Doc::subdoc(parent_ref, options);
+                        if !is_deleted {
+                            parent_txn
+                                .subdocs_mut()
+                                .added
+                                .insert(new_ref.addr(), new_ref.clone());
+                        }
                         parent_txn
                             .subdocs_mut()
-                            .added
+                            .removed
                             .insert(new_ref.addr(), new_ref.clone());
-                    }
-                    parent_txn
-                        .subdocs_mut()
-                        .removed
-                        .insert(new_ref.addr(), new_ref.clone());
 
-                    *content = new_ref;
+                        *content = new_ref;
+                    }
                 }
             }
         }
@@ -441,7 +449,7 @@ impl TryFrom<ItemPtr> for Doc {
     type Error = ItemPtr;
 
     fn try_from(item: ItemPtr) -> Result<Self, Self::Error> {
-        if let ItemContent::Doc(_, doc) = &item.content {
+        if let ItemContent::Doc(doc) = &item.content {
             Ok(doc.clone())
         } else {
             Err(item)
@@ -613,7 +621,7 @@ impl Prelim for Doc {
         if txn.parent_doc().is_some() {
             panic!("Cannot integrate the document, because it's already being used as a sub-document elsewhere");
         }
-        (ItemContent::Doc(None, self), None)
+        (ItemContent::Doc(self), None)
     }
 
     fn integrate(self, _txn: &mut TransactionMut, _inner_ref: BranchPtr) {}

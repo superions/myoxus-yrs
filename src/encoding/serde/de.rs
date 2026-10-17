@@ -243,7 +243,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
             Any::Undefined => self.deserialize_unit(visitor),
             Any::Bool(_) => self.deserialize_bool(visitor),
             Any::Number(Number::Float(_)) => self.deserialize_f64(visitor),
-            Any::Number(Number::Int(_)) => self.deserialize_i64(visitor),
+            Any::Number(Number::Int(_)) | Any::BigInt(_) => self.deserialize_i64(visitor),
             Any::String(_) => self.deserialize_string(visitor),
             Any::Buffer(_) => self.deserialize_byte_buf(visitor),
             Any::Array(_) => self.deserialize_seq(visitor),
@@ -270,6 +270,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
                 Some(i) => i,
                 None => return Err(Error::type_mismatch::<i8>()),
             },
+            Any::BigInt(i) => *i,
             _ => return Err(Error::type_mismatch::<i8>()),
         }
         .try_into()
@@ -286,6 +287,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
                 Some(i) => i,
                 None => return Err(Error::type_mismatch::<i16>()),
             },
+            Any::BigInt(i) => *i,
             _ => return Err(Error::type_mismatch::<i16>()),
         }
         .try_into()
@@ -302,6 +304,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
                 Some(i) => i,
                 None => return Err(Error::type_mismatch::<i32>()),
             },
+            Any::BigInt(i) => *i,
             _ => return Err(Error::type_mismatch::<i32>()),
         }
         .try_into()
@@ -318,6 +321,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
                 Some(i) => i,
                 None => return Err(Error::type_mismatch::<i64>()),
             },
+            Any::BigInt(i) => *i,
             _ => return Err(Error::type_mismatch::<i64>()),
         };
         visitor.visit_i64(value)
@@ -332,6 +336,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
                 Some(i) => i,
                 None => return Err(Error::type_mismatch::<u8>()),
             },
+            Any::BigInt(i) => *i,
             _ => return Err(Error::type_mismatch::<u8>()),
         }
         .try_into()
@@ -348,6 +353,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
                 Some(i) => i,
                 None => return Err(Error::type_mismatch::<u16>()),
             },
+            Any::BigInt(i) => *i,
             _ => return Err(Error::type_mismatch::<u16>()),
         }
         .try_into()
@@ -364,6 +370,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
                 Some(i) => i,
                 None => return Err(Error::type_mismatch::<u32>()),
             },
+            Any::BigInt(i) => *i,
             _ => return Err(Error::type_mismatch::<u32>()),
         }
         .try_into()
@@ -380,6 +387,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
                 Some(i) => i,
                 None => return Err(Error::type_mismatch::<u64>()),
             },
+            Any::BigInt(i) => *i,
             _ => return Err(Error::type_mismatch::<u64>()),
         }
         .try_into()
@@ -396,6 +404,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
                 Some(f) => visitor.visit_f32(f as f32),
                 None => Err(Error::type_mismatch::<f32>()),
             },
+            Any::BigInt(value) => visitor.visit_f32(*value as f32),
             _ => Err(Error::type_mismatch::<f32>()),
         }
     }
@@ -409,6 +418,7 @@ impl<'de> Deserializer<'de> for AnyDeserializer<'de> {
                 Some(f) => visitor.visit_f64(f),
                 None => Err(Error::type_mismatch::<f64>()),
             },
+            Any::BigInt(value) => visitor.visit_f64(*value as f64),
             _ => Err(Error::type_mismatch::<f64>()),
         }
     }

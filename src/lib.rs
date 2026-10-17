@@ -777,3 +777,6 @@ pub fn uuid_v4_from(value: u128) -> Uuid {
     let str: &str = unsafe { std::str::from_utf8_unchecked(&dst) };
     str.into()
 }
+
+#[cfg(all(test, target_os = "linux"))]
+mod myoxus_ownership_tests;

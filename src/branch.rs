@@ -254,7 +254,7 @@ impl Branch {
 
     pub fn as_subdoc(&self) -> Option<Doc> {
         let item = self.item?;
-        if let ItemContent::Doc(_, doc) = &item.content {
+        if let ItemContent::Doc(doc) = &item.content {
             Some(doc.clone())
         } else {
             None

@@ -1,4 +1,4 @@
-use crate::block::{Block, BlockRange, Item, ItemContent, ItemPosition, ItemPtr, Prelim, ID};
+use crate::block::{Item, ItemContent, ItemPosition, ItemPtr, Prelim, ID};
 use crate::branch::{Branch, BranchPtr};
 use crate::doc::DocAddr;
 use crate::error::{Error, UpdateError};
@@ -165,20 +165,20 @@ pub trait ReadTxn: Sized {
     }
 
     /// Returns an iterator over top level (root) shared types available in current [Doc].
-    fn root_refs(&self) -> RootRefs {
+    fn root_refs(&self) -> RootRefs<'_> {
         let store = self.store();
         RootRefs(store.types.iter())
     }
 
     /// Returns a collection of globally unique identifiers of sub documents linked within
     /// the structures of this document store.
-    fn subdoc_guids(&self) -> SubdocGuids {
+    fn subdoc_guids(&self) -> SubdocGuids<'_> {
         let store = self.store();
         store.subdoc_guids()
     }
 
     /// Returns a collection of sub documents linked within the structures of this document store.
-    fn subdocs(&self) -> SubdocsIter {
+    fn subdocs(&self) -> SubdocsIter<'_> {
         let store = self.store();
         store.subdocs()
     }
@@ -263,22 +263,14 @@ pub trait ReadTxn: Sized {
     /// If current document has been inserted as a sub-document, returns a reference to a parent
     /// document, which contains it.
     fn parent_doc(&self) -> Option<Doc> {
-        if let Some(item) = self.store().parent.as_deref() {
-            if let ItemContent::Doc(parent_doc, _) = &item.content {
-                return parent_doc.clone();
-            }
-        }
-
-        None
+        self.store().parent.as_ref().and_then(crate::store::ParentLink::doc)
     }
 
-    /// If current document has been inserted as a sub-document, returns its [BranchID].
+    /// Returns the containing item identity while the parent store is alive.
     fn branch_id(&self) -> Option<BranchID> {
-        if let Some(item) = self.store().parent {
-            Some(BranchID::Nested(item.id))
-        } else {
-            None
-        }
+        let parent = self.store().parent.as_ref()?;
+        let _owner = parent.doc()?;
+        Some(BranchID::Nested(parent.id))
     }
 
     /// Returns `true` if current document has any pending updates that are not yet
@@ -775,6 +767,7 @@ impl<'doc> TransactionMut<'doc> {
         let mut recurse = Vec::new();
         let mut result = false;
 
+        #[cfg(feature = "weak")]
         let ptr = item.clone();
         let store = self.store.deref();
         if !item.is_deleted() {
@@ -794,7 +787,7 @@ impl<'doc> TransactionMut<'doc> {
             }
 
             match &mut item.content {
-                ItemContent::Doc(_, doc) => {
+                ItemContent::Doc(doc) => {
                     let subdocs = self.subdocs.get_or_init();
                     let addr = doc.addr();
                     if subdocs.added.remove(&addr).is_none() {
@@ -955,7 +948,7 @@ impl<'doc> TransactionMut<'doc> {
         } else {
             None
         };
-        let mut block = Item::new(
+        let block = Item::new(
             id,
             left,
             origin,

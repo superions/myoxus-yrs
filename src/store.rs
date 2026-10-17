@@ -21,7 +21,7 @@ use std::borrow::Borrow;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 /// Store is a core element of a document. It contains all of the information, like block store
 /// map of root types, pending updates waiting to be applied once a missing update information
@@ -55,9 +55,8 @@ pub struct Store {
 
     pub(crate) events: Option<Box<StoreEvents>>,
 
-    /// Pointer to a parent block - present only if a current document is a sub-document of another
-    /// document.
-    pub(crate) parent: Option<ItemPtr>,
+    /// Non-owning parent identity; never retain a raw pointer into another store.
+    pub(crate) parent: Option<ParentLink>,
 
     /// Dependencies between items and weak links pointing to these items.
     pub(crate) linked_by: HashMap<ItemPtr, HashSet<BranchPtr>>,
@@ -105,7 +104,7 @@ impl Store {
     }
 
     pub fn is_subdoc(&self) -> bool {
-        self.parent.is_some()
+        self.parent.as_ref().and_then(ParentLink::doc).is_some()
     }
 
     /// Get the latest clock sequence number observed and integrated into a current store client.
@@ -355,13 +354,13 @@ impl Store {
     }
 
     /// Returns a collection of sub documents linked within the structures of this document store.
-    pub fn subdocs(&self) -> SubdocsIter {
+    pub fn subdocs(&self) -> SubdocsIter<'_> {
         SubdocsIter(self.subdocs.values())
     }
 
     /// Returns a collection of globally unique identifiers of sub documents linked within
     /// the structures of this document store.
-    pub fn subdoc_guids(&self) -> SubdocGuids {
+    pub fn subdoc_guids(&self) -> SubdocGuids<'_> {
         SubdocGuids(self.subdocs.values())
     }
 
@@ -417,7 +416,7 @@ impl std::fmt::Display for Store {
         }
 
         if let Some(parent) = self.parent.as_ref() {
-            s.field("parent block", parent.id());
+            s.field("parent block", &parent.id);
         }
         if !self.linked_by.is_empty() {
             s.field("links", &self.linked_by);
@@ -426,12 +425,37 @@ impl std::fmt::Display for Store {
     }
 }
 
+/// A child can outlive its parent without retaining it. Item IDs are copied
+/// while the parent transaction owns the item; resolve them only through a
+/// transaction on that same parent. Upgrading the weak store alone does not
+/// protect an item from concurrent GC, so readers never dereference a saved
+/// ItemPtr (including parent_doc, branch_id and Debug).
+#[derive(Debug, Clone)]
+pub(crate) struct ParentLink {
+    pub(crate) id: ID,
+    store: Weak<StoreInner>,
+}
+
+impl ParentLink {
+    pub(crate) fn new(parent: &Doc, id: ID) -> Self {
+        Self { id, store: Arc::downgrade(&parent.store.0) }
+    }
+
+    pub(crate) fn doc(&self) -> Option<Doc> {
+        self.store.upgrade().map(|store| Doc { store: DocStore(store) })
+    }
+
+    pub(crate) fn matches(&self, parent: &Doc) -> bool {
+        self.store.as_ptr() == Arc::as_ptr(&parent.store.0)
+    }
+}
+
 #[repr(transparent)]
 #[derive(Debug, Clone)]
 pub(crate) struct DocStore(pub(crate) Arc<StoreInner>);
 
 impl DocStore {
-    pub fn new(options: Options, parent: Option<ItemPtr>) -> Self {
+    pub fn new(options: Options, parent: Option<ParentLink>) -> Self {
         let mut store = Store::new(&options);
         let options = ArcSwap::new(options.into());
         store.parent = parent;
@@ -441,39 +465,39 @@ impl DocStore {
         }))
     }
 
-    pub(crate) fn try_read(&self) -> Option<RwLockReadGuard<Store>> {
+    pub(crate) fn try_read(&self) -> Option<RwLockReadGuard<'_, Store>> {
         self.0.store.try_read()
     }
 
     #[cfg(not(target_family = "wasm"))]
-    pub(crate) fn read_blocking(&self) -> RwLockReadGuard<Store> {
+    pub(crate) fn read_blocking(&self) -> RwLockReadGuard<'_, Store> {
         self.0.store.read_blocking()
     }
 
     #[cfg(target_family = "wasm")]
-    pub(crate) fn read_blocking(&self) -> RwLockReadGuard<Store> {
+    pub(crate) fn read_blocking(&self) -> RwLockReadGuard<'_, Store> {
         self.0.store.try_read().unwrap()
     }
 
-    pub(crate) fn read_async(&self) -> Read<Store> {
+    pub(crate) fn read_async(&self) -> Read<'_, Store> {
         self.0.store.read()
     }
 
-    pub(crate) fn try_write(&self) -> Option<RwLockWriteGuard<Store>> {
+    pub(crate) fn try_write(&self) -> Option<RwLockWriteGuard<'_, Store>> {
         self.0.store.try_write()
     }
 
     #[cfg(not(target_family = "wasm"))]
-    pub(crate) fn write_blocking(&self) -> RwLockWriteGuard<Store> {
+    pub(crate) fn write_blocking(&self) -> RwLockWriteGuard<'_, Store> {
         self.0.store.write_blocking()
     }
 
     #[cfg(target_family = "wasm")]
-    pub(crate) fn write_blocking(&self) -> RwLockWriteGuard<Store> {
+    pub(crate) fn write_blocking(&self) -> RwLockWriteGuard<'_, Store> {
         self.0.store.try_write().unwrap()
     }
 
-    pub(crate) fn write_async(&self) -> Write<Store> {
+    pub(crate) fn write_async(&self) -> Write<'_, Store> {
         self.0.store.write()
     }
 

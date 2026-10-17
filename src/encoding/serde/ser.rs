@@ -33,6 +33,7 @@ impl Serialize for Any {
                     },
                 }
             }
+            Any::BigInt(value) => serializer.serialize_i64(*value),
             Any::String(value) => serializer.serialize_str(value.as_ref()),
             Any::Array(values) => {
                 let mut seq = serializer.serialize_seq(Some(values.len()))?;
@@ -672,7 +673,7 @@ mod test {
 
         assert_eq!(
             to_any(&Test(i64::MAX as u64)).unwrap(),
-            Any::Number(Number::Int(i64::MAX))
+            Any::BigInt(i64::MAX)
         )
     }
 
