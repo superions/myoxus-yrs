@@ -746,8 +746,9 @@ mod test {
 
     #[test]
     fn awareness_summary() -> Result<(), Box<dyn std::error::Error>> {
-        let mut local = Awareness::new(Doc::with_client_id(1));
-        let mut remote = Awareness::new(Doc::with_client_id(2));
+        // State equality includes local receive timestamps, which are not synchronized by updates.
+        let mut local = Awareness::with_clock(Doc::with_client_id(1), || 42);
+        let mut remote = Awareness::with_clock(Doc::with_client_id(2), || 42);
 
         local.set_local_state(json!({"x":3})).unwrap();
         let update = local.update_with_clients([local.client_id()])?;

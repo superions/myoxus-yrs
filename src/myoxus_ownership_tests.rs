@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Myoxus regressions for the parent/subdocument ownership fix.
-// Run serially in an isolated Linux process; see README.myoxus.md for limits.
+// Run serially in an isolated Linux process; see docs/TESTING.md for limits.
 
 use crate::updates::decoder::Decode;
 use crate::{Doc, GetString, Map, ReadTxn, StateVector, Text, Transact};

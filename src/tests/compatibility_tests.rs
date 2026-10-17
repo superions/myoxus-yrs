@@ -436,12 +436,18 @@ fn negative_zero_decoding_v2() {
 
 #[test]
 fn test_small_data_set() {
-    test_data_set("../assets/bench-input/small-test-dataset.bin")
+    test_data_set(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/assets/bench-input/small-test-dataset.bin"
+    ))
 }
 
 #[test]
 fn test_medium_data_set() {
-    test_data_set("../assets/bench-input/medium-test-dataset.bin")
+    test_data_set(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/assets/bench-input/medium-test-dataset.bin"
+    ))
 }
 
 fn test_data_set<P: AsRef<std::path::Path>>(path: P) {

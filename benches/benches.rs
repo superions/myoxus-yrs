@@ -394,7 +394,7 @@ fn b3_4(c: &mut Criterion, name: &str) {
 fn b4_1(c: &mut Criterion, name: &str) {
     let doc = Doc::new();
     let txt = doc.get_or_insert_text("text");
-    let input = read_input("./assets/bench-input/b4-editing-trace.bin");
+    let input = read_input(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/bench-input/b4-editing-trace.bin"));
 
     c.bench_with_input(
         BenchmarkId::new(name, input.len()),
@@ -417,7 +417,7 @@ fn b4_2(c: &mut Criterion, name: &str) {
     let doc = Doc::new();
     let txt = doc.get_or_insert_text("text");
     let mut buf = Vec::with_capacity(400 * 1024);
-    let mut f = std::fs::File::open("./assets/bench-input/b4-update.bin").unwrap();
+    let mut f = std::fs::File::open(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/bench-input/b4-update.bin")).unwrap();
     std::io::Read::read_to_end(&mut f, &mut buf).unwrap();
 
     c.bench_with_input(

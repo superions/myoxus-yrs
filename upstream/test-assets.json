@@ -1,0 +1,49 @@
+{
+  "commit": "23b7f5693bbf9e7d26340c521ee8647f79bdfba2",
+  "files": [
+    {
+      "path": "assets/bench-input/b4-editing-trace.bin",
+      "gitBlobSha1": "306eac586e7602831f40d47cf83d6a66c86a9e0d"
+    },
+    {
+      "path": "assets/bench-input/b4-update.bin",
+      "gitBlobSha1": "937a046408973c46a1e7f73f5ecb871780297ffc"
+    },
+    {
+      "path": "assets/bench-input/medium-test-dataset.bin",
+      "gitBlobSha1": "7952093810c4a94088663d752d95d069fae1a40e"
+    },
+    {
+      "path": "assets/bench-input/small-test-dataset.bin",
+      "gitBlobSha1": "662663551f592179c9d7b6241037f7a0478184fc"
+    },
+    {
+      "path": "assets/editing-traces/README.md",
+      "gitBlobSha1": "4c888e4f5515bba3bc1671b73a32670d0c14ad0b"
+    },
+    {
+      "path": "assets/editing-traces/sequential_traces/README.md",
+      "gitBlobSha1": "aecb52b70396dc8058626c3c002bf4d6cdd48689"
+    },
+    {
+      "path": "assets/editing-traces/sequential_traces/automerge-paper.json.gz",
+      "gitBlobSha1": "aa7f67ec0b02d5b21e8aa16a62879fc98d8b2daf"
+    },
+    {
+      "path": "assets/editing-traces/sequential_traces/friendsforever_flat.json.gz",
+      "gitBlobSha1": "b1a6aa42fa3910b4d1d7c027b28d89ff26256de6"
+    },
+    {
+      "path": "assets/editing-traces/sequential_traces/rustcode.json.gz",
+      "gitBlobSha1": "c19ecfd71ef5587ad672dcf3c4cb61d12bbc2f5e"
+    },
+    {
+      "path": "assets/editing-traces/sequential_traces/seph-blog1.json.gz",
+      "gitBlobSha1": "a826034b74245eba52940a738a70b29ab15d8ec7"
+    },
+    {
+      "path": "assets/editing-traces/sequential_traces/sveltecomponent.json.gz",
+      "gitBlobSha1": "9ccb0933516f04832725bfee4d66a89aa4bab04b"
+    }
+  ]
+}

@@ -1,10 +1,9 @@
-#![doc(
-    html_logo_url = "https://raw.githubusercontent.com/y-crdt/y-crdt/main/logo-yrs.svg",
-    html_favicon_url = "https://raw.githubusercontent.com/y-crdt/y-crdt/main/logo-yrs.svg"
-)]
-
-//! Yrs (read: "wires") is a high performance CRDT implementation based on the idea of **Shared Types**.
-//! It is a compatible port of the [Yjs](https://github.com/yjs/yjs) CRDT.
+//! `myoxus-yrs` is the Myoxus-maintained fork of [Yrs](https://github.com/y-crdt/y-crdt),
+//! based on Yrs 0.28.0. The Cargo package is `myoxus-yrs`; its Rust crate name remains `yrs`.
+//! It implements the [Yjs](https://github.com/yjs/yjs) CRDT using **Shared Types**.
+//! This fork preserves distinct [`Any::BigInt`] values and sorts object keys during
+//! encoding. Review the [fork changes](https://github.com/superions/myoxus-yrs/blob/main/docs/CHANGES.md)
+//! before substituting it for upstream Yrs; byte-for-byte output and API shape differ.
 //!
 //! **Shared Types** work just like normal data types, but they automatically sync with other peers.
 //!
@@ -778,5 +777,6 @@ pub fn uuid_v4_from(value: u128) -> Uuid {
     str.into()
 }
 
-#[cfg(all(test, target_os = "linux"))]
+// Allocator instrumentation is opt-in and stays outside ordinary feature combinations.
+#[cfg(all(test, target_os = "linux", myoxus_memory_probes))]
 mod myoxus_ownership_tests;

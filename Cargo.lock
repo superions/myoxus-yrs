@@ -491,6 +491,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "myoxus-yrs"
+version = "0.28.0-myoxus.1"
+dependencies = [
+ "arc-swap",
+ "assert_matches2",
+ "async-lock",
+ "async-trait",
+ "compact_str",
+ "criterion",
+ "dashmap",
+ "fastrand",
+ "flate2",
+ "proptest",
+ "proptest-derive",
+ "ropey",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1101,29 +1124,6 @@ name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
-
-[[package]]
-name = "yrs"
-version = "0.28.0"
-dependencies = [
- "arc-swap",
- "assert_matches2",
- "async-lock",
- "async-trait",
- "compact_str",
- "criterion",
- "dashmap",
- "fastrand",
- "flate2",
- "proptest",
- "proptest-derive",
- "ropey",
- "serde",
- "serde_json",
- "smallvec",
- "thiserror",
- "uuid",
-]
 
 [[package]]
 name = "zerocopy"
