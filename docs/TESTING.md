@@ -5,8 +5,8 @@ test datasets; it is not a library dependency.
 
 ```sh
 python3 scripts/fetch-test-assets.py
-cargo test --locked --all-features
-cargo package --locked
+cargo test --locked --release --all-features
+cargo publish --dry-run --locked
 ```
 
 The first command fetches the upstream datasets used by the inherited editing
@@ -15,11 +15,15 @@ commit and each file is checked against its recorded Git blob hash. Verified
 files are reused. Assets are ignored by Git and excluded from the crate;
 running the inherited dataset tests without fetching them fails visibly.
 
+The complete test suite uses the release profile, as upstream does for these
+large editing traces. Unoptimized replay is substantially slower and is not
+the regular qualification command.
+
 `tests/fork_regressions.rs` uses public library APIs and small synthetic values
 to cover parent detachment, selective undo/redo, deterministic object encoding,
 BigInt tags, v1/v2 document roundtrips and exact conversion boundaries. These
 tests do not need external assets. The inherited library tests and doctests
-provide wider behavioral coverage. `cargo package` verifies that the default
+provide wider behavioral coverage. `cargo publish --dry-run` verifies that the default
 feature library builds from the actual package contents.
 
 GitHub Actions runs the all-feature tests and package verification with an

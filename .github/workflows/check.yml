@@ -22,6 +22,6 @@ jobs:
       - name: Fetch verified upstream test assets
         run: python3 scripts/fetch-test-assets.py
       - name: Test features and API examples
-        run: cargo test --locked --all-features
-      - name: Verify default-feature package
-        run: cargo package --locked
+        run: cargo test --locked --release --all-features
+      - name: Verify crates.io publication readiness
+        run: cargo publish --dry-run --locked
