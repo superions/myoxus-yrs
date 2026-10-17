@@ -25,7 +25,7 @@ keywords = [
 ]
 license = "MIT"
 repository = "https://github.com/superions/myoxus-yrs"
-include = ["Cargo.toml", "Cargo.lock", "LICENSE", "README.md", "CHANGELOG.md", "src/**", "tests/**", "benches/**", "docs/**", "upstream/**", "scripts/fetch-test-assets.py"]
+include = ["/Cargo.toml", "/Cargo.lock", "/LICENSE", "/README.md", "/CHANGELOG.md", "/src/**", "/tests/**", "/benches/**", "/docs/**", "/upstream/**", "/scripts/fetch-test-assets.py"]
 
 [package.metadata.myoxus]
 upstream-package = "yrs"
