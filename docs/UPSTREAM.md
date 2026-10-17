@@ -18,7 +18,9 @@ The repository begins with a source-only import of that checksum-verified
 archive, followed by the maintained library changes and standalone packaging.
 It does not import the private Myoxus Git history. The original MIT notice was
 retained from the previously vendored Yrs source because the 0.28.0 archive
-does not include a license file. Its authors' notice is preserved in LICENSE.
+does not include a license file. The original notice is preserved verbatim in
+`upstream/LICENSE-yrs`; LICENSE uses standard MIT formatting with all three
+copyright holders, including Daniel Scharf for the adaptations.
 
 The additional test datasets are fetched from the exact upstream commit.
 `upstream/test-assets.json` records each expected Git blob identifier, verified
