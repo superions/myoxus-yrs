@@ -24,18 +24,19 @@ Kevin Jahns and Bartosz Sypytkowski.
 change. [Upstream provenance](docs/UPSTREAM.md) records the exact release and
 checksum. This fork does not claim universal drop-in compatibility with Yrs.
 
-## Use from GitHub
+## Installation
 
 The package name is `myoxus-yrs`; the Rust library name remains `yrs`, so existing
 `use yrs::...` imports and the upstream examples can keep their names.
 
 ```toml
 [dependencies]
-yrs = { package = "myoxus-yrs", git = "https://github.com/superions/myoxus-yrs", branch = "main" }
+yrs = { package = "myoxus-yrs", version = "=0.28.0-myoxus.1" }
 ```
 
-For reproducible application builds, select a reviewed commit with Cargo's
-`rev` option and commit `Cargo.lock`. A different package name does not
+Commit `Cargo.lock` for reproducible application builds. Unreleased changes can
+be selected from this GitHub repository with Cargo's `git` and exact `rev`
+options. A different package name does not
 automatically replace transitive dependencies on upstream `yrs`; both packages
 can otherwise coexist with distinct Rust types.
 
@@ -48,10 +49,10 @@ text.insert(&mut doc.transact_mut(), 0, "Hello from Myoxus");
 assert_eq!(text.get_string(&doc.transact()), "Hello from Myoxus");
 ```
 
-The manifest prepares version `0.28.0-myoxus.1`. This identifies the upstream
-base and the first Myoxus prerelease; it is not a claim that the package has
-been published on crates.io. GitHub availability and registry publication are
-separate steps. See [release and registry notes](docs/RELEASING.md).
+Version [0.28.0-myoxus.1](https://crates.io/crates/myoxus-yrs/0.28.0-myoxus.1)
+was published on crates.io on 2026-10-17. It is the first Myoxus prerelease,
+based on Yrs 0.28.0; consumers must select the prerelease explicitly. See
+[release and registry notes](docs/RELEASING.md).
 
 ## Features and API documentation
 
@@ -61,7 +62,8 @@ older peers. Select it according to your existing peer/protocol requirements.
 `sync` requires observer callbacks to be `Send + Sync`; `weak` enables weak
 references and quotations.
 
-Build the fork's API documentation with `cargo doc --no-deps --all-features`.
+Read the [published API documentation](https://docs.rs/myoxus-yrs/0.28.0-myoxus.1/yrs/)
+or build it with `cargo doc --no-deps --all-features`.
 Upstream documentation is useful background, but it does not describe all
 fork-specific behavior.
 

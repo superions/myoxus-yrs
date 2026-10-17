@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.28.0-myoxus.1 — prepared
+## 0.28.0-myoxus.1 — 2026-10-17
 
 Initial standalone Myoxus fork based on Yrs 0.28.0.
 

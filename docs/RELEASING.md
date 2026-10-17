@@ -1,8 +1,14 @@
 # Releases and crates.io
 
-The repository prepares `myoxus-yrs` version `0.28.0-myoxus.1`, based on Yrs
-0.28.0. The suffix marks a Myoxus prerelease. Consumers must opt into a
-prerelease explicitly. No registry upload is performed by the test workflow.
+`myoxus-yrs` version [0.28.0-myoxus.1](https://crates.io/crates/myoxus-yrs/0.28.0-myoxus.1)
+was published on 2026-10-17, based on Yrs 0.28.0. The suffix marks a Myoxus
+prerelease. Consumers must opt into a prerelease explicitly. No registry upload
+is performed by the test workflow.
+
+The published archive comes from release commit
+`e94cdc97212f719a2f4b2b8c1b8fee391c349ec8`, tagged `v0.28.0-myoxus.1`. Its SHA-256
+is `a58aeb8433e47a73bc37f84f9ef40db7fe9d1cd413cb0e70303677372eac8de2`.
+Later repository documentation edits do not change this immutable package.
 
 ## What registry publication adds
 
@@ -12,7 +18,6 @@ docs.rs normally builds API documentation for published Rust packages.
 Consumers can use:
 
 ```toml
-# After this version has actually been published:
 [dependencies]
 yrs = { package = "myoxus-yrs", version = "=0.28.0-myoxus.1" }
 ```
@@ -25,7 +30,7 @@ and it does not automatically replace transitive dependencies on `yrs`.
 
 Publishing needs an available crate name, a crates.io account with a verified
 email address, and authorized registry credentials. Keep credentials outside
-the repository. This preparation does not create a registry account or token.
+the repository.
 
 Before the first upload, review the license, authors, package contents,
 changelog and compatibility notes; run the documented tests and
